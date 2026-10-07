@@ -1,0 +1,951 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Aplikasi SOT & Tabungan Siswa - SMP Negeri 3 Jepara</title>
+  
+  <!-- Tailwind CSS & Alpine.js -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  
+  <!-- Supabase JS Library -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <!-- Library Export Excel & PDF -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+
+  <style>
+    .bg-dark-glow {
+      background: radial-gradient(circle at 20% 20%, #2e1065 0%, #0f172a 50%, #030712 100%);
+    }
+    .glass-card {
+      background: rgba(255, 255, 255, 0.07);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+    }
+  </style>
+</head>
+<body class="bg-slate-100 text-slate-800 font-sans min-h-screen" x-data="app()">
+
+  <!-- NAVBAR -->
+  <nav class="bg-indigo-700 text-white shadow-lg" x-show="user">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex justify-between items-center">
+      <div class="flex items-center space-x-3">
+        <span class="font-bold text-lg tracking-wide">KAS SOT & TABUNGAN</span>
+        <span class="bg-indigo-900 text-indigo-200 text-xs px-2.5 py-1 rounded-full uppercase font-bold" x-text="userRole"></span>
+      </div>
+      <div class="flex items-center space-x-4">
+        <span class="text-sm font-medium" x-text="'Halo, ' + userEmail"></span>
+        <button @click="logout()" class="bg-red-500 hover:bg-red-600 px-3 py-1.5 rounded-lg text-xs font-semibold transition">
+          Logout
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <main>
+    <!-- 1. HALAMAN LOGIN DENGAN ILUSTRASI KIRI & KANAN -->
+    <div x-show="!user" class="min-h-screen bg-dark-glow flex items-center justify-center p-4 relative overflow-hidden">
+      
+      <div class="absolute top-1/4 left-10 w-72 h-72 bg-purple-600 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-pulse"></div>
+      <div class="absolute bottom-1/4 right-10 w-72 h-72 bg-blue-600 rounded-full mix-blend-multiply filter blur-3xl opacity-30 animate-pulse"></div>
+
+      <div class="w-full max-w-5xl grid grid-cols-1 md:grid-cols-12 gap-6 items-center z-10">
+        
+        <!-- ILUSTRASI KIRI - SOT -->
+        <div class="hidden md:flex md:col-span-3 flex-col items-center justify-center text-center text-white/80 space-y-3">
+          <div class="w-36 h-36 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center shadow-2xl backdrop-blur-md">
+            <svg class="w-20 h-20 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+          </div>
+          <p class="text-xs font-semibold text-purple-200 tracking-wider uppercase">Manajemen SOT</p>
+          <p class="text-xs text-slate-400 px-2">Pencatatan dan transparansi kas sumbangan orang tua terintegrasi.</p>
+        </div>
+
+        <!-- FORM LOGIN TENGAH -->
+        <div class="md:col-span-6 flex justify-center">
+          <div class="glass-card p-8 md:p-10 rounded-3xl shadow-2xl w-full max-w-md text-white">
+            
+            <div class="text-center mb-6">
+              <div class="w-12 h-12 bg-gradient-to-tr from-indigo-500 to-purple-500 rounded-xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-indigo-500/30">
+                <span class="text-xl font-bold text-white">◆</span>
+              </div>
+              <h2 class="text-xl font-extrabold tracking-tight">Login SOT + Tabungan Siswa</h2>
+              <p class="text-purple-300 text-xs font-semibold mt-1">SMP Negeri 3 Jepara</p>
+            </div>
+
+            <form @submit.prevent="login()" class="space-y-4">
+              <div>
+                <label class="block text-xs font-medium text-slate-300 mb-1">Email / Username</label>
+                <input type="email" x-model="loginForm.email" required placeholder="email@sekolah.sch.id"
+                       class="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm transition">
+              </div>
+
+              <div>
+                <label class="block text-xs font-medium text-slate-300 mb-1">Password</label>
+                <input type="password" x-model="loginForm.password" required placeholder="••••••••"
+                       class="w-full px-4 py-3 rounded-xl bg-white/10 border border-white/20 text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500 text-sm transition">
+              </div>
+
+              <button type="submit" :disabled="loading"
+                      class="w-full mt-2 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 hover:opacity-90 text-white font-semibold py-3 rounded-xl shadow-lg transition duration-200 text-sm flex justify-center items-center">
+                <span x-show="!loading">Masuk ke Dashboard</span>
+                <span x-show="loading">Otentikasi...</span>
+              </button>
+            </form>
+
+          </div>
+        </div>
+
+        <!-- ILUSTRASI KANAN - TABUNGAN SISWA -->
+        <div class="hidden md:flex md:col-span-3 flex-col items-center justify-center text-center text-white/80 space-y-3">
+          <div class="w-36 h-36 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center shadow-2xl backdrop-blur-md">
+            <svg class="w-20 h-20 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path>
+            </svg>
+          </div>
+          <p class="text-xs font-semibold text-indigo-200 tracking-wider uppercase">Tabungan Siswa</p>
+          <p class="text-xs text-slate-400 px-2">Pantau rekapitulasi tabungan siswa secara aman dan real-time.</p>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- 2. DASHBOARD UTAMA -->
+    <div x-show="user" class="max-w-7xl mx-auto p-4 md:p-6 space-y-6">
+
+      <!-- MODE PENGEPUL -->
+      <div x-show="userRole === 'pengepul'" class="space-y-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          
+          <!-- Input SOT -->
+          <div class="bg-white p-6 rounded-xl shadow-md border-t-4 border-indigo-600">
+            <h3 class="text-lg font-bold text-slate-800 mb-4">💵 Input Sumbangan Orang Tua (SOT)</h3>
+            <form @submit.prevent="submitTx('SOT')" class="space-y-3">
+              <div>
+                <label class="text-xs font-semibold text-slate-600">PILIH SISWA</label>
+                <select x-model="formSOT.siswaIndex" @change="selectSiswa('SOT')" required class="w-full p-2.5 border rounded-lg text-sm">
+                  <option value="">-- Pilih Siswa --</option>
+                  <template x-for="(s, idx) in listSiswa" :key="idx">
+                    <option :value="idx" x-text="`[${s.kelas}] ${s.nama}`"></option>
+                  </template>
+                </select>
+              </div>
+              <div>
+                <label class="text-xs font-semibold text-slate-600">NOMINAL (RP)</label>
+                <input type="number" x-model="formSOT.nominal" required min="1000" placeholder="50000" class="w-full p-2.5 border rounded-lg text-sm">
+              </div>
+              <div>
+                <label class="text-xs font-semibold text-slate-600">KETERANGAN</label>
+                <input type="text" x-model="formSOT.keterangan" placeholder="SOT Bulan Oktober" class="w-full p-2.5 border rounded-lg text-sm">
+              </div>
+              <button type="submit" class="w-full bg-indigo-600 text-white py-2 rounded-lg font-semibold hover:bg-indigo-700">Simpan SOT</button>
+            </form>
+
+            <div x-show="lastSOTKuitansi" class="mt-4 p-3 bg-indigo-50 border border-indigo-200 rounded-lg flex items-center justify-between">
+              <div class="text-xs text-indigo-900">
+                <span class="font-bold">Input SOT Berhasil!</span>
+                <p x-text="`${lastSOTKuitansi?.nama} (${formatRupiah(lastSOTKuitansi?.nominal)})`"></p>
+              </div>
+              <button @click="cetakKuitansiTransaksi(lastSOTKuitansi)" class="bg-indigo-600 hover:bg-indigo-700 text-white text-xs px-3 py-1.5 rounded-md font-semibold transition">
+                🖨️ Cetak Kuitansi SOT
+              </button>
+            </div>
+          </div>
+
+          <!-- Input Tabungan -->
+          <div class="bg-white p-6 rounded-xl shadow-md border-t-4 border-emerald-600">
+            <h3 class="text-lg font-bold text-slate-800 mb-4">🏦 Input Tabungan Siswa</h3>
+            <form @submit.prevent="submitTx('Tabungan')" class="space-y-3">
+              <div>
+                <label class="text-xs font-semibold text-slate-600">PILIH SISWA</label>
+                <select x-model="formTab.siswaIndex" @change="selectSiswa('Tabungan')" required class="w-full p-2.5 border rounded-lg text-sm">
+                  <option value="">-- Pilih Siswa --</option>
+                  <template x-for="(s, idx) in listSiswa" :key="idx">
+                    <option :value="idx" x-text="`[${s.kelas}] ${s.nama}`"></option>
+                  </template>
+                </select>
+              </div>
+              <div>
+                <label class="text-xs font-semibold text-slate-600">NOMINAL (RP)</label>
+                <input type="number" x-model="formTab.nominal" required min="1000" placeholder="10000" class="w-full p-2.5 border rounded-lg text-sm">
+              </div>
+              <div>
+                <label class="text-xs font-semibold text-slate-600">KETERANGAN</label>
+                <input type="text" x-model="formTab.keterangan" placeholder="Setoran Pekanan" class="w-full p-2.5 border rounded-lg text-sm">
+              </div>
+              <button type="submit" class="w-full bg-emerald-600 text-white py-2 rounded-lg font-semibold hover:bg-emerald-700">Simpan Tabungan</button>
+            </form>
+
+            <div x-show="lastTabunganKuitansi" class="mt-4 p-3 bg-emerald-50 border border-emerald-200 rounded-lg flex items-center justify-between">
+              <div class="text-xs text-emerald-900">
+                <span class="font-bold">Input Tabungan Berhasil!</span>
+                <p x-text="`${lastTabunganKuitansi?.nama} (${formatRupiah(lastTabunganKuitansi?.nominal)})`"></p>
+              </div>
+              <button @click="cetakKuitansiTransaksi(lastTabunganKuitansi)" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs px-3 py-1.5 rounded-md font-semibold transition">
+                🖨️ Cetak Kuitansi Tabungan
+              </button>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Tabel Riwayat Transaksi Pengepul -->
+        <div class="bg-white p-6 rounded-xl shadow-md space-y-4">
+          <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
+            <h3 class="text-lg font-bold text-slate-800">Riwayat Transaksi Harian Pengepul</h3>
+            <div class="flex space-x-2">
+              <button @click="exportExcel(riwayatPengepul, 'Riwayat_Pengepul')" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition">
+                📥 Export Excel
+              </button>
+              <button @click="exportPDF(riwayatPengepul, 'Riwayat Transaksi Pengepul')" class="bg-red-600 hover:bg-red-700 text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition">
+                📄 Export PDF
+              </button>
+            </div>
+          </div>
+
+          <div class="overflow-x-auto">
+            <table class="w-full text-left border-collapse">
+              <thead>
+                <tr class="bg-slate-100 text-slate-600 text-xs uppercase">
+                  <th class="p-3">Tanggal</th>
+                  <th class="p-3">Jenis</th>
+                  <th class="p-3">Kelas</th>
+                  <th class="p-3">Nama Siswa</th>
+                  <th class="p-3">Nominal</th>
+                  <th class="p-3">Keterangan</th>
+                  <th class="p-3 text-center">Cetak Kuitansi</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y text-sm">
+                <template x-for="row in riwayatPengepul" :key="row.id">
+                  <tr class="hover:bg-slate-50">
+                    <td class="p-3" x-text="row.tanggal"></td>
+                    <td class="p-3">
+                      <span :class="row.jenis === 'SOT' ? 'bg-indigo-100 text-indigo-800' : 'bg-emerald-100 text-emerald-800'"
+                            class="px-2 py-0.5 rounded text-xs font-bold" x-text="row.jenis"></span>
+                    </td>
+                    <td class="p-3" x-text="row.kelas"></td>
+                    <td class="p-3 font-medium" x-text="row.nama"></td>
+                    <td class="p-3 font-semibold text-slate-700" x-text="formatRupiah(row.nominal)"></td>
+                    <td class="p-3 text-slate-500" x-text="row.keterangan"></td>
+                    <td class="p-3 text-center">
+                      <button @click="cetakKuitansiTransaksi(row)" 
+                              :class="row.jenis === 'SOT' ? 'bg-indigo-50 text-indigo-700 border-indigo-200 hover:bg-indigo-100' : 'bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100'"
+                              class="border px-2.5 py-1 rounded text-xs font-semibold transition">
+                        🖨️ Kuitansi
+                      </button>
+                    </td>
+                  </tr>
+                </template>
+                <tr x-show="riwayatPengepul.length === 0">
+                  <td colspan="7" class="p-4 text-center text-slate-400">Belum ada transaksi hari ini.</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- MODE BENDAHARA -->
+      <div x-show="userRole === 'bendahara'" class="space-y-6">
+        
+        <!-- NAV TAB BENDAHARA -->
+        <div class="flex border-b border-slate-300 space-x-4">
+          <button @click="tabBendahara = 'sot'"
+                  :class="tabBendahara === 'sot' ? 'border-b-2 border-indigo-600 text-indigo-600 font-bold' : 'text-slate-500 font-medium'"
+                  class="pb-2 text-base px-2">
+            💰 Pengelolaan SOT
+          </button>
+          <button @click="tabBendahara = 'tabungan'"
+                  :class="tabBendahara === 'tabungan' ? 'border-b-2 border-emerald-600 text-emerald-600 font-bold' : 'text-slate-500 font-medium'"
+                  class="pb-2 text-base px-2">
+            🏦 Laporan Tabungan Siswa
+          </button>
+        </div>
+
+        <!-- TAB 1: KAS SOT BENDAHARA -->
+        <div x-show="tabBendahara === 'sot'" class="space-y-6">
+          
+          <!-- RINGKASAN SALDO SOT -->
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="bg-white p-5 rounded-xl shadow border-l-4 border-indigo-600">
+              <p class="text-xs font-semibold text-slate-500 uppercase">Total Pemasukan SOT</p>
+              <p class="text-2xl font-bold text-indigo-600 mt-1" x-text="formatRupiah(rekap.sotMasuk)"></p>
+            </div>
+            <div class="bg-white p-5 rounded-xl shadow border-l-4 border-red-500">
+              <p class="text-xs font-semibold text-slate-500 uppercase">Total Pengeluaran SOT</p>
+              <p class="text-2xl font-bold text-red-600 mt-1" x-text="formatRupiah(rekap.sotKeluar)"></p>
+            </div>
+            <div class="bg-white p-5 rounded-xl shadow border-l-4 border-emerald-500">
+              <p class="text-xs font-semibold text-slate-500 uppercase">Saldo Real-Time SOT</p>
+              <p class="text-2xl font-bold text-emerald-600 mt-1" x-text="formatRupiah(rekap.sotMasuk - rekap.sotKeluar)"></p>
+            </div>
+          </div>
+
+          <!-- INPUT PENGELUARAN SOT -->
+          <div class="bg-white p-6 rounded-xl shadow-md border-t-4 border-red-500">
+            <h3 class="text-lg font-bold text-slate-800 mb-4 flex items-center">
+              <span class="mr-2">💸</span> Input Pengeluaran SOT
+            </h3>
+            <form @submit.prevent="submitPengeluaran('SOT')" class="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div>
+                <label class="text-xs font-semibold text-slate-600">URAIAN PENGELUARAN</label>
+                <input type="text" x-model="formPengeluaran.uraian" required placeholder="Pembelian Semen/Keramik" class="w-full p-2.5 border rounded-lg text-sm mt-1">
+              </div>
+              <div>
+                <label class="text-xs font-semibold text-slate-600">NOMINAL (RP)</label>
+                <input type="number" x-model="formPengeluaran.nominal" required min="1000" placeholder="150000" class="w-full p-2.5 border rounded-lg text-sm mt-1">
+              </div>
+              <div>
+                <label class="text-xs font-semibold text-slate-600">KETERANGAN</label>
+                <input type="text" x-model="formPengeluaran.keterangan" placeholder="Keterangan tambahan" class="w-full p-2.5 border rounded-lg text-sm mt-1">
+              </div>
+              <div class="md:col-span-3">
+                <button type="submit" class="bg-red-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-red-700 transition">
+                  Simpan Pengeluaran SOT
+                </button>
+              </div>
+            </form>
+          </div>
+
+          <!-- TABEL RIWAYAT PENGELUARAN SOT -->
+          <div class="bg-white p-6 rounded-xl shadow-md space-y-4">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
+              <h3 class="text-lg font-bold text-slate-800">Riwayat Pengeluaran SOT</h3>
+              <div class="flex space-x-2">
+                <button @click="exportExcel(getFilteredPengeluaran('SOT'), 'Riwayat_Pengeluaran_SOT')" class="bg-emerald-600 text-white px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-emerald-700 transition">
+                  📥 Export Excel
+                </button>
+                <button @click="exportPDFPengeluaran(getFilteredPengeluaran('SOT'), 'Riwayat Pengeluaran SOT')" class="bg-red-600 text-white px-3 py-1.5 rounded-lg text-xs font-semibold hover:bg-red-700 transition">
+                  📄 Export PDF
+                </button>
+              </div>
+            </div>
+
+            <input type="file" id="tableFileInput" @change="triggerUploadKuitansi($event)" accept="image/*,application/pdf" class="hidden">
+
+            <div class="overflow-x-auto">
+              <table class="w-full text-left border-collapse">
+                <thead>
+                  <tr class="bg-red-50 text-red-700 text-xs uppercase">
+                    <th class="p-3">Tanggal</th>
+                    <th class="p-3">Uraian Pengeluaran</th>
+                    <th class="p-3">Nominal</th>
+                    <th class="p-3">Keterangan</th>
+                    <th class="p-3 text-center">Bukti Kuitansi</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y text-sm">
+                  <template x-for="row in getFilteredPengeluaran('SOT')" :key="row.id">
+                    <tr class="hover:bg-slate-50">
+                      <td class="p-3" x-text="row.tanggal"></td>
+                      <td class="p-3 font-medium text-slate-800" x-text="row.uraian"></td>
+                      <td class="p-3 font-semibold text-red-600" x-text="formatRupiah(row.nominal)"></td>
+                      <td class="p-3 text-slate-500" x-text="row.keterangan"></td>
+                      <td class="p-3 text-center">
+                        <div class="flex justify-center items-center space-x-2">
+                          <template x-if="row.urlKuitansi && row.urlKuitansi !== '-'">
+                            <div class="flex space-x-1">
+                              <a :href="row.urlKuitansi" target="_blank" class="bg-blue-50 text-blue-600 border border-blue-200 hover:bg-blue-100 px-2 py-1 rounded text-xs font-semibold flex items-center">
+                                📎 Lihat
+                              </a>
+                              <button @click="selectRowForUpload(row.id)" class="bg-slate-100 text-slate-600 hover:bg-slate-200 px-2 py-1 rounded text-xs font-medium">
+                                ✏️ Ganti
+                              </button>
+                            </div>
+                          </template>
+                          
+                          <template x-if="!row.urlKuitansi || row.urlKuitansi === '-'">
+                            <button @click="selectRowForUpload(row.id)" 
+                                    :disabled="uploadingId === row.id"
+                                    class="bg-amber-50 text-amber-700 border border-amber-300 hover:bg-amber-100 px-2.5 py-1 rounded text-xs font-semibold transition">
+                              <span x-show="uploadingId !== row.id">📤 Upload Kuitansi</span>
+                              <span x-show="uploadingId === row.id">Proses...</span>
+                            </button>
+                          </template>
+                        </div>
+                      </td>
+                    </tr>
+                  </template>
+                  <tr x-show="getFilteredPengeluaran('SOT').length === 0">
+                    <td colspan="5" class="p-4 text-center text-slate-400">Belum ada catatan pengeluaran SOT.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- LAPORAN PEMASUKAN SOT DENGAN FILTER TINGKATAN KELAS -->
+          <div class="bg-white p-6 rounded-xl shadow-md space-y-4">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
+              <h3 class="text-lg font-bold text-slate-800">Laporan Transaksi Pemasukan SOT</h3>
+              
+              <div class="flex flex-wrap items-center gap-2">
+                <label class="text-xs font-semibold text-slate-600">Filter Kelas:</label>
+                <select x-model="filterKelasSOT" class="p-2 border rounded-lg text-sm bg-slate-50 font-medium">
+                  <option value="ALL">Semua Kelas (Keseluruhan)</option>
+                  <option value="TINGKAT_7">Tingkat Kelas 7 (Semua Kelas 7)</option>
+                  <option value="TINGKAT_8">Tingkat Kelas 8 (Semua Kelas 8)</option>
+                  <option value="TINGKAT_9">Tingkat Kelas 9 (Semua Kelas 9)</option>
+                  <template x-for="k in daftarKelasDynamic" :key="k">
+                    <option :value="k" x-text="'Kelas ' + k"></option>
+                  </template>
+                </select>
+                
+                <button @click="exportExcel(getFilteredSOT(), 'Laporan_Pemasukan_SOT_' + filterKelasSOT)" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-2 rounded-lg text-xs font-semibold transition">
+                  📥 Export Excel
+                </button>
+
+                <button @click="exportPDF(getFilteredSOT(), 'Laporan Pemasukan SOT ' + filterKelasSOT)" class="bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-lg text-xs font-semibold transition">
+                  📄 Export PDF
+                </button>
+              </div>
+            </div>
+
+            <div class="overflow-x-auto">
+              <table class="w-full text-left border-collapse">
+                <thead>
+                  <tr class="bg-slate-100 text-slate-600 text-xs uppercase">
+                    <th class="p-3">Tanggal</th>
+                    <th class="p-3">Pengepul</th>
+                    <th class="p-3">Kelas</th>
+                    <th class="p-3">Nama Siswa</th>
+                    <th class="p-3">Nominal</th>
+                    <th class="p-3">Keterangan</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y text-sm">
+                  <template x-for="row in getFilteredSOT()" :key="row.id">
+                    <tr class="hover:bg-slate-50">
+                      <td class="p-3" x-text="row.tanggal"></td>
+                      <td class="p-3 uppercase text-xs font-semibold text-indigo-600" x-text="row.pengepul"></td>
+                      <td class="p-3" x-text="row.kelas"></td>
+                      <td class="p-3 font-medium" x-text="row.nama"></td>
+                      <td class="p-3 font-semibold text-slate-700" x-text="formatRupiah(row.nominal)"></td>
+                      <td class="p-3 text-slate-500" x-text="row.keterangan"></td>
+                    </tr>
+                  </template>
+                  <tr x-show="getFilteredSOT().length === 0">
+                    <td colspan="6" class="p-4 text-center text-slate-400">Tidak ada data SOT ditemukan.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- TAB 2: TABUNGAN SISWA BENDAHARA -->
+        <div x-show="tabBendahara === 'tabungan'" class="space-y-6">
+          
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="bg-white p-5 rounded-xl shadow border-l-4 border-emerald-600">
+              <p class="text-xs font-semibold text-slate-500 uppercase">Total Tabungan Masuk</p>
+              <p class="text-2xl font-bold text-emerald-600 mt-1" x-text="formatRupiah(rekap.tabMasuk)"></p>
+            </div>
+            <div class="bg-white p-5 rounded-xl shadow border-l-4 border-amber-500">
+              <p class="text-xs font-semibold text-slate-500 uppercase">Total Penarikan Tabungan</p>
+              <p class="text-2xl font-bold text-amber-600 mt-1" x-text="formatRupiah(rekap.tabKeluar)"></p>
+            </div>
+            <div class="bg-white p-5 rounded-xl shadow border-l-4 border-teal-500">
+              <p class="text-xs font-semibold text-slate-500 uppercase">Saldo Real-Time Tabungan</p>
+              <p class="text-2xl font-bold text-teal-600 mt-1" x-text="formatRupiah(rekap.tabMasuk - rekap.tabKeluar)"></p>
+            </div>
+          </div>
+
+          <div class="bg-white p-6 rounded-xl shadow-md space-y-4">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
+              <h3 class="text-lg font-bold text-slate-800">Laporan Transaksi Tabungan Siswa</h3>
+              
+              <div class="flex flex-wrap items-center gap-2">
+                <label class="text-xs font-semibold text-slate-600">Filter Kelas:</label>
+                <select x-model="filterKelasTabungan" class="p-2 border rounded-lg text-sm bg-slate-50 font-medium">
+                  <option value="ALL">Semua Kelas (Keseluruhan)</option>
+                  <option value="TINGKAT_7">Tingkat Kelas 7 (Semua Kelas 7)</option>
+                  <option value="TINGKAT_8">Tingkat Kelas 8 (Semua Kelas 8)</option>
+                  <option value="TINGKAT_9">Tingkat Kelas 9 (Semua Kelas 9)</option>
+                  <template x-for="k in daftarKelasDynamic" :key="k">
+                    <option :value="k" x-text="'Kelas ' + k"></option>
+                  </template>
+                </select>
+
+                <button @click="exportExcel(getFilteredTabungan(), 'Laporan_Tabungan_' + filterKelasTabungan)" class="bg-emerald-600 hover:bg-emerald-700 text-white px-3 py-2 rounded-lg text-xs font-semibold transition">
+                  📥 Export Excel
+                </button>
+                
+                <button @click="exportPDF(getFilteredTabungan(), 'Laporan Tabungan ' + filterKelasTabungan)" class="bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded-lg text-xs font-semibold transition">
+                  📄 Export PDF
+                </button>
+              </div>
+            </div>
+
+            <div class="overflow-x-auto">
+              <table class="w-full text-left border-collapse">
+                <thead>
+                  <tr class="bg-slate-100 text-slate-600 text-xs uppercase">
+                    <th class="p-3">Tanggal</th>
+                    <th class="p-3">Pengepul</th>
+                    <th class="p-3">Kelas</th>
+                    <th class="p-3">Nama Siswa</th>
+                    <th class="p-3">Nominal</th>
+                    <th class="p-3">Keterangan</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y text-sm">
+                  <template x-for="row in getFilteredTabungan()" :key="row.id">
+                    <tr class="hover:bg-slate-50">
+                      <td class="p-3" x-text="row.tanggal"></td>
+                      <td class="p-3 uppercase text-xs font-semibold text-indigo-600" x-text="row.pengepul"></td>
+                      <td class="p-3" x-text="row.kelas"></td>
+                      <td class="p-3 font-medium" x-text="row.nama"></td>
+                      <td class="p-3 font-semibold text-slate-700" x-text="formatRupiah(row.nominal)"></td>
+                      <td class="p-3 text-slate-500" x-text="row.keterangan"></td>
+                    </tr>
+                  </template>
+                  <tr x-show="getFilteredTabungan().length === 0">
+                    <td colspan="6" class="p-4 text-center text-slate-400">Tidak ada data Tabungan ditemukan.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+    </div>
+  </main>
+
+  <script>
+    const SUPABASE_URL = "https://qodpodzmpraxyscdnqxi.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFvZHBvZHptcHJheHlzY2RucXhpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTEzNzcwNjQsImV4cCI6MjEwNjk1MzA2NH0.hrcS3BLUo8_BARZ7RlXrqYpPned7VXJP9WCXxeOzKtk";
+    const db = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    function app() {
+      return {
+        user: null,
+        userEmail: '',
+        userRole: 'pengepul',
+        loading: false,
+        loginForm: { email: '', password: '' },
+
+        tabBendahara: 'sot',
+        listSiswa: [],
+        riwayatPengepul: [],
+        listTransaksiBendahara: [],
+        listPengeluaranBendahara: [],
+        daftarKelasDynamic: [],
+
+        filterKelasSOT: 'ALL',
+        filterKelasTabungan: 'ALL',
+
+        formSOT: { siswaIndex: '', nis: '', nama: '', kelas: '', nominal: '', keterangan: '' },
+        formTab: { siswaIndex: '', nis: '', nama: '', kelas: '', nominal: '', keterangan: '' },
+        formPengeluaran: { uraian: '', nominal: '', keterangan: '' },
+
+        lastSOTKuitansi: null,
+        lastTabunganKuitansi: null,
+        rekap: { sotMasuk: 0, sotKeluar: 0, tabMasuk: 0, tabKeluar: 0 },
+
+        selectedPengeluaranId: null,
+        uploadingId: null,
+
+        init() {
+          db.auth.getSession().then(({ data: { session } }) => {
+            if (session) {
+              this.user = session.user;
+              this.userEmail = session.user.email;
+              this.userRole = session.user.user_metadata?.role || 'pengepul';
+              this.loadApp();
+            }
+          });
+        },
+
+        async login() {
+          this.loading = true;
+          const { data, error } = await db.auth.signInWithPassword({
+            email: this.loginForm.email,
+            password: this.loginForm.password
+          });
+
+          this.loading = false;
+          if (error) {
+            alert("Login gagal: " + error.message);
+          } else {
+            this.user = data.user;
+            this.userEmail = data.user.email;
+            this.userRole = data.user.user_metadata?.role || 'pengepul';
+            this.loadApp();
+          }
+        },
+
+        async logout() {
+          await db.auth.signOut();
+          this.user = null;
+        },
+
+        loadApp() {
+          this.fetchSiswa();
+          this.fetchRiwayatPengepul();
+          this.fetchRekap();
+        },
+
+        async fetchSiswa() {
+          const { data, error } = await db.from('siswa').select('*').order('nama', { ascending: true });
+          if (!error && data) {
+            this.listSiswa = data;
+            const setKelas = new Set();
+            data.forEach(s => { if(s.kelas) setKelas.add(String(s.kelas).trim()); });
+            this.daftarKelasDynamic = Array.from(setKelas).sort();
+          }
+        },
+
+        selectSiswa(type) {
+          const form = type === 'SOT' ? this.formSOT : this.formTab;
+          if (form.siswaIndex !== '') {
+            const s = this.listSiswa[form.siswaIndex];
+            form.nis = s.nis;
+            form.nama = s.nama;
+            form.kelas = s.kelas;
+          }
+        },
+
+        async submitTx(jenis) {
+          const form = jenis === 'SOT' ? this.formSOT : this.formTab;
+          if (!form.nama) return alert('Pilih siswa terlebih dahulu!');
+
+          const idTx = "TX-" + Date.now();
+          const tgl = new Date().toISOString().split('T')[0];
+          const nominalNum = Number(form.nominal);
+
+          const payload = {
+            id_tx: idTx,
+            tanggal: tgl,
+            jenis: jenis,
+            pengepul_username: this.userEmail.split('@')[0],
+            nis: form.nis || '-',
+            nama: form.nama,
+            kelas: form.kelas,
+            nominal: nominalNum,
+            keterangan: form.keterangan || '-'
+          };
+
+          const { error } = await db.from('transaksi').insert([payload]);
+
+          if (error) {
+            alert("Gagal menyimpan transaksi: " + error.message);
+          } else {
+            alert(`Transaksi ${jenis} Berhasil Disimpan!`);
+            
+            const dataKuitansi = {
+              idTx: idTx,
+              tanggal: tgl,
+              pengepul: payload.pengepul_username,
+              nis: payload.nis,
+              nama: payload.nama,
+              kelas: payload.kelas,
+              nominal: nominalNum,
+              keterangan: payload.keterangan,
+              jenis: jenis
+            };
+
+            if (jenis === 'SOT') {
+              this.lastSOTKuitansi = dataKuitansi;
+              this.formSOT = { siswaIndex: '', nis: '', nama: '', kelas: '', nominal: '', keterangan: '' };
+            } else {
+              this.lastTabunganKuitansi = dataKuitansi;
+              this.formTab = { siswaIndex: '', nis: '', nama: '', kelas: '', nominal: '', keterangan: '' };
+            }
+
+            this.fetchRiwayatPengepul();
+            this.fetchRekap();
+          }
+        },
+
+        async submitPengeluaran(jenis) {
+          const idOut = "OUT-" + Date.now();
+          const tgl = new Date().toISOString().split('T')[0];
+
+          const payload = {
+            id_out: idOut,
+            tanggal: tgl,
+            jenis: jenis,
+            uraian: this.formPengeluaran.uraian,
+            nominal: Number(this.formPengeluaran.nominal),
+            keterangan: this.formPengeluaran.keterangan || '-',
+            url_kuitansi: '-'
+          };
+
+          const { error } = await db.from('pengeluaran').insert([payload]);
+
+          if (error) {
+            alert("Gagal menyimpan pengeluaran: " + error.message);
+          } else {
+            alert("Pengeluaran berhasil dicatat!");
+            this.formPengeluaran = { uraian: '', nominal: '', keterangan: '' };
+            this.fetchRekap();
+          }
+        },
+
+        selectRowForUpload(idPengeluaran) {
+          this.selectedPengeluaranId = idPengeluaran;
+          document.getElementById('tableFileInput').click();
+        },
+
+        async triggerUploadKuitansi(e) {
+          const file = e.target.files[0];
+          if (!file || !this.selectedPengeluaranId) return;
+
+          this.uploadingId = this.selectedPengeluaranId;
+          const fileExt = file.name.split('.').pop();
+          const fileName = `${this.selectedPengeluaranId}_${Date.now()}.${fileExt}`;
+
+          const { data: storageData, error: storageError } = await db.storage
+            .from('kuitansi-pengeluaran')
+            .upload(fileName, file, { upsert: true });
+
+          if (storageError) {
+            this.uploadingId = null;
+            return alert("Gagal upload file kuitansi: " + storageError.message);
+          }
+
+          const { data: urlData } = db.storage
+            .from('kuitansi-pengeluaran')
+            .getPublicUrl(fileName);
+
+          const publicUrl = urlData.publicUrl;
+
+          const { error: updateError } = await db
+            .from('pengeluaran')
+            .update({ url_kuitansi: publicUrl })
+            .eq('id_out', this.selectedPengeluaranId);
+
+          this.uploadingId = null;
+          e.target.value = '';
+
+          if (updateError) {
+            alert("Gagal mengupdate URL kuitansi: " + updateError.message);
+          } else {
+            alert("Bukti kuitansi berhasil diunggah!");
+            this.fetchRekap();
+          }
+        },
+
+        async fetchRiwayatPengepul() {
+          const username = this.userEmail.split('@')[0];
+          const { data, error } = await db
+            .from('transaksi')
+            .select('*')
+            .eq('pengepul_username', username)
+            .order('created_at', { ascending: false });
+
+          if (!error && data) {
+            this.riwayatPengepul = data.map(item => ({
+              id: item.id_tx,
+              tanggal: item.tanggal,
+              jenis: item.jenis,
+              pengepul: item.pengepul_username,
+              nis: item.nis,
+              nama: item.nama,
+              kelas: item.kelas,
+              nominal: Number(item.nominal),
+              keterangan: item.keterangan
+            }));
+          }
+        },
+
+        async fetchRekap() {
+          const { data: txData } = await db.from('transaksi').select('*').order('created_at', { ascending: false });
+          if (txData) {
+            this.listTransaksiBendahara = txData.map(item => ({
+              id: item.id_tx,
+              tanggal: item.tanggal,
+              jenis: item.jenis,
+              pengepul: item.pengepul_username,
+              nis: item.nis,
+              nama: item.nama,
+              kelas: item.kelas,
+              nominal: Number(item.nominal),
+              keterangan: item.keterangan
+            }));
+
+            this.rekap.sotMasuk = txData.filter(t => t.jenis === 'SOT').reduce((acc, curr) => acc + Number(curr.nominal), 0);
+            this.rekap.tabMasuk = txData.filter(t => t.jenis === 'Tabungan').reduce((acc, curr) => acc + Number(curr.nominal), 0);
+          }
+
+          const { data: outData } = await db.from('pengeluaran').select('*').order('created_at', { ascending: false });
+          if (outData) {
+            this.listPengeluaranBendahara = outData.map(item => ({
+              id: item.id_out,
+              tanggal: item.tanggal,
+              jenis: item.jenis,
+              uraian: item.uraian,
+              nominal: Number(item.nominal),
+              keterangan: item.keterangan,
+              urlKuitansi: item.url_kuitansi || '-'
+            }));
+
+            this.rekap.sotKeluar = outData.filter(t => t.jenis === 'SOT').reduce((acc, curr) => acc + Number(curr.nominal), 0);
+            this.rekap.tabKeluar = outData.filter(t => t.jenis === 'Tabungan').reduce((acc, curr) => acc + Number(curr.nominal), 0);
+          }
+        },
+
+        getFilteredSOT() {
+          let list = this.listTransaksiBendahara.filter(t => t.jenis === 'SOT');
+          if (this.filterKelasSOT === 'TINGKAT_7') {
+            list = list.filter(t => String(t.kelas).startsWith('7'));
+          } else if (this.filterKelasSOT === 'TINGKAT_8') {
+            list = list.filter(t => String(t.kelas).startsWith('8'));
+          } else if (this.filterKelasSOT === 'TINGKAT_9') {
+            list = list.filter(t => String(t.kelas).startsWith('9'));
+          } else if (this.filterKelasSOT !== 'ALL') {
+            list = list.filter(t => String(t.kelas) === this.filterKelasSOT);
+          }
+          return list;
+        },
+
+        getFilteredTabungan() {
+          let list = this.listTransaksiBendahara.filter(t => t.jenis === 'Tabungan');
+          if (this.filterKelasTabungan === 'TINGKAT_7') {
+            list = list.filter(t => String(t.kelas).startsWith('7'));
+          } else if (this.filterKelasTabungan === 'TINGKAT_8') {
+            list = list.filter(t => String(t.kelas).startsWith('8'));
+          } else if (this.filterKelasTabungan === 'TINGKAT_9') {
+            list = list.filter(t => String(t.kelas).startsWith('9'));
+          } else if (this.filterKelasTabungan !== 'ALL') {
+            list = list.filter(t => String(t.kelas) === this.filterKelasTabungan);
+          }
+          return list;
+        },
+
+        getFilteredPengeluaran(jenis) {
+          return this.listPengeluaranBendahara.filter(p => p.jenis === jenis);
+        },
+
+        formatRupiah(val) {
+          return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(val || 0);
+        },
+
+        cetakKuitansiTransaksi(item) {
+          const { jsPDF } = window.jspdf;
+          const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: [160, 100] });
+
+          const isSOT = item.jenis === 'SOT';
+          const titleText = isSOT ? "KUITANSI SUMBANGAN ORANG TUA (SOT)" : "KUITANSI TABUNGAN SISWA";
+          const headerColor = isSOT ? [67, 56, 202] : [5, 150, 105];
+
+          doc.setFillColor(...headerColor);
+          doc.rect(0, 0, 160, 18, 'F');
+          doc.setTextColor(255, 255, 255);
+          doc.setFontSize(13);
+          doc.setFont('helvetica', 'bold');
+          doc.text(titleText, 80, 12, { align: 'center' });
+
+          doc.setTextColor(30, 41, 59);
+          doc.setFontSize(9);
+          doc.setFont('helvetica', 'normal');
+
+          doc.text(`No. Transaksi : ${item.id || '-'}`, 10, 26);
+          doc.text(`Tanggal         : ${item.tanggal}`, 10, 32);
+
+          doc.setLineWidth(0.3);
+          doc.line(10, 35, 150, 35);
+
+          doc.setFontSize(10);
+          doc.text(`Telah diterima dari : ${item.nama}`, 10, 43);
+          doc.text(`Kelas               : ${item.kelas}`, 10, 50);
+          doc.text(`Jenis Transaksi     : ${item.jenis}`, 10, 57);
+          doc.text(`Keterangan          : ${item.keterangan || '-'}`, 10, 64);
+
+          doc.setFillColor(241, 245, 249);
+          doc.rect(10, 70, 70, 12, 'F');
+          doc.setFontSize(11);
+          doc.setFont('helvetica', 'bold');
+          doc.text(`Jumlah: ${this.formatRupiah(item.nominal)}`, 13, 78);
+
+          doc.setFontSize(9);
+          doc.setFont('helvetica', 'normal');
+          doc.text(`Penerima / Pengepul,`, 115, 73);
+          doc.setFont('helvetica', 'bold');
+          doc.text(`( ${item.pengepul?.toUpperCase()} )`, 115, 91);
+
+          doc.save(`Kuitansi_${item.jenis}_${item.nama.replace(/\s+/g, '_')}.pdf`);
+        },
+
+        exportExcel(data, filename) {
+          if (!data || data.length === 0) return alert('Tidak ada data untuk di-export.');
+          
+          const cleanedData = data.map(item => ({
+            Tanggal: item.tanggal,
+            Pengepul: item.pengepul || '-',
+            Kelas: item.kelas || '-',
+            'Nama Siswa / Uraian': item.nama || item.uraian || '-',
+            Nominal: item.nominal,
+            Keterangan: item.keterangan || '-'
+          }));
+
+          const ws = XLSX.utils.json_to_sheet(cleanedData);
+          const wb = XLSX.utils.book_new();
+          XLSX.utils.book_append_sheet(wb, ws, "Laporan");
+          XLSX.writeFile(wb, `${filename.replace(/\s+/g, '_')}.xlsx`);
+        },
+
+        exportPDF(data, title) {
+          if (!data || data.length === 0) return alert('Tidak ada data untuk di-export.');
+          const { jsPDF } = window.jspdf;
+          const doc = new jsPDF();
+          doc.text(title, 14, 15);
+          
+          const tableData = data.map(item => [
+            item.tanggal,
+            item.pengepul || '-',
+            item.kelas || '-',
+            item.nama || '-',
+            this.formatRupiah(item.nominal),
+            item.keterangan || '-'
+          ]);
+
+          doc.autoTable({
+            head: [['Tanggal', 'Pengepul', 'Kelas', 'Nama Siswa', 'Nominal', 'Keterangan']],
+            body: tableData,
+            startY: 20
+          });
+
+          doc.save(`${title.replace(/\s+/g, '_')}.pdf`);
+        },
+
+        exportPDFPengeluaran(data, title) {
+          if (!data || data.length === 0) return alert('Tidak ada data untuk di-export.');
+          const { jsPDF } = window.jspdf;
+          const doc = new jsPDF();
+          doc.text(title, 14, 15);
+          
+          const tableData = data.map(item => [
+            item.tanggal,
+            item.uraian || '-',
+            this.formatRupiah(item.nominal),
+            item.keterangan || '-'
+          ]);
+
+          doc.autoTable({
+            head: [['Tanggal', 'Uraian Pengeluaran', 'Nominal', 'Keterangan']],
+            body: tableData,
+            startY: 20
+          });
+
+          doc.save(`${title.replace(/\s+/g, '_')}.pdf`);
+        }
+      };
+    }
+  </script>
+</body>
+</html>
